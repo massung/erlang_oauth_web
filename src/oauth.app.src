@@ -1,0 +1,15 @@
+{application, oauth,
+ [
+  {description, "OAuth Web Framework Interface"},
+  {vsn, "1"},
+  {modules, [oauth_app,oauth_sup,oauth,oauth_fsm]},
+  {registered, []},
+  {applications, [crypto,
+                  ssl,
+                  inets,
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { oauth_app, []}},
+  {env, []}
+ ]}.
