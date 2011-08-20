@@ -21,7 +21,7 @@ Assuming you have your web site already registered with an OAuth provider (e.g. 
 
 Your site - at the very least - will also require the following conent for this tutorial. For simplicity, this tutorial will assume you are using the Nitrogen framework (www.nitrogenproject.com) and are using the supplied names.
 
-1. A homepage, where the user will select "Login via <provider>" (index.erl)
+1. A homepage, where the user will select "Login via &lt;provider&gt;" (index.erl)
 2. A login page that is pure AJAX, meaning it doesn't present the user with data (login.erl)
 3. A javascript, included in the homepage (login.js)
 4. A callback page, which you setup with the OAuth provider (home.erl)
@@ -33,10 +33,10 @@ On your homepage, you will present the user with a simple link or button that - 
 
    function login ()
    {
-	 $.ajax({ url : "/login"
-         	, success : authenticate
-           	, failure : login_fail
-         });
+      $.ajax({ url     : "/login"
+             , success : authenticate
+             , failure : function () { alert("login failed!"); }
+      });
    }
 
 The login.erl script is a page that will perform the following functions:
@@ -46,31 +46,31 @@ The login.erl script is a page that will perform the following functions:
 3. Issue a request to get a new oauth token from the provider
 4. Return the token back to the login script
 
-	-module(login).
-	-compile(export_all).
-	-include_lib("nitrogen/include/wf.hrl").
-	-include("include/oauth.hrl").
+   -module(login).
+   -compile(export_all).
+   -include_lib("nitrogen/include/wf.hrl").
+   -include("include/oauth.hrl").
 
-	-define(TOKEN_URL,"https://api.twitter.com/oauth/request_token").
-	-define(CONSUMER,
-	        #oauth_consumer{
-		  key="6LKYdhxJg3wOC7HskIaeRg",
-		  secret="yTZ94TtfROAaAq0NyrociXD1si67WMXSx0hdZdl56Y",
-		  signature_method='HMAC-SHA1'
-		}).
+   -define(TOKEN_URL,"https://api.twitter.com/oauth/request_token").
+   -define(CONSUMER,
+        #oauth_consumer{
+          key="6LKYdhxJg3wOC7HskIaeRg",
+          secret="yTZ94TtfROAaAq0NyrociXD1si67WMXSx0hdZdl56Y",
+          signature_method='HMAC-SHA1'
+	}).
 
-	main () ->
-	  {ok,Pid}=oauth_fsm:start_link(),
+   main () ->
+     {ok,Pid}=oauth_fsm:start_link(),
 
-	  %% start the oauth state machine by acquiring a token
-	  {ok,Token}=gen_fsm:sync_send_event(Pid,{?TOKEN_URL,?CONSUMER,[]}),
+     %% start the oauth state machine by acquiring a token
+     {ok,Token}=gen_fsm:sync_send_event(Pid,{?TOKEN_URL,?CONSUMER,[]}),
 
-	  %% save the oauth fsm with this session for use later...
-	  wf:session("user",Pid),
+     %% save the oauth fsm with this session for use later...
+     wf:session("user",Pid),
 
-	  %% return the token acquired as plaintext
-	  wf:content_type("text/plain"),
-	  Token.
+     %% return the token acquired as plaintext
+     wf:content_type("text/plain"),
+     Token.
 
 The empty list in the example above is an optional list of {Key,Value} tuples that are passed to the provider in the POST, giving the provider more information about the token request. For example, Google requires a "scope" parameter be passed in, detailing what features the application will be using, which will be presented to the user for them to authenticate.
 
