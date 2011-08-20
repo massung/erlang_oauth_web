@@ -31,13 +31,13 @@ Your site - at the very least - will also require the following conent for this 
 
 On your homepage, you will present the user with a simple link or button that - when clicked - will call the login() javacsript function. This function will make an AJAX request to the login page:
 
-   function login ()
-   {
-      $.ajax({ url     : "/login"
-             , success : authenticate
-             , failure : function () { alert("login failed!"); }
-      });
-   }
+    function login ()
+    {
+       $.ajax({ url     : "/login"
+              , success : authenticate
+              , failure : function () { alert("login failed!"); }
+       });
+    }
 
 The login.erl script is a page that will perform the following functions:
 
