@@ -46,6 +46,8 @@ The login.erl script is a page that will perform the following functions:
 3. Issue a request to get a new oauth token from the provider
 4. Return the token back to the login script
 
+Example login.erl:
+
     -module(login).
     -compile(export_all).
     -include_lib("nitrogen/include/wf.hrl").
