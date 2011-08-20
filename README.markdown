@@ -46,31 +46,31 @@ The login.erl script is a page that will perform the following functions:
 3. Issue a request to get a new oauth token from the provider
 4. Return the token back to the login script
 
-   -module(login).
-   -compile(export_all).
-   -include_lib("nitrogen/include/wf.hrl").
-   -include("include/oauth.hrl").
+    -module(login).
+    -compile(export_all).
+    -include_lib("nitrogen/include/wf.hrl").
+    -include("include/oauth.hrl").
 
-   -define(TOKEN_URL,"https://api.twitter.com/oauth/request_token").
-   -define(CONSUMER,
+    -define(TOKEN_URL,"https://api.twitter.com/oauth/request_token").
+    -define(CONSUMER,
         #oauth_consumer{
           key="6LKYdhxJg3wOC7HskIaeRg",
           secret="yTZ94TtfROAaAq0NyrociXD1si67WMXSx0hdZdl56Y",
           signature_method='HMAC-SHA1'
 	}).
 
-   main () ->
-     {ok,Pid}=oauth_fsm:start_link(),
+    main () ->
+      {ok,Pid}=oauth_fsm:start_link(),
 
-     %% start the oauth state machine by acquiring a token
-     {ok,Token}=gen_fsm:sync_send_event(Pid,{?TOKEN_URL,?CONSUMER,[]}),
+      %% start the oauth state machine by acquiring a token
+      {ok,Token}=gen_fsm:sync_send_event(Pid,{?TOKEN_URL,?CONSUMER,[]}),
 
-     %% save the oauth fsm with this session for use later...
-     wf:session("user",Pid),
+      %% save the oauth fsm with this session for use later...
+      wf:session("user",Pid),
 
-     %% return the token acquired as plaintext
-     wf:content_type("text/plain"),
-     Token.
+      %% return the token acquired as plaintext
+      wf:content_type("text/plain"),
+      Token.
 
 The empty list in the example above is an optional list of {Key,Value} tuples that are passed to the provider in the POST, giving the provider more information about the token request. For example, Google requires a "scope" parameter be passed in, detailing what features the application will be using, which will be presented to the user for them to authenticate.
 
@@ -79,10 +79,10 @@ The empty list in the example above is an optional list of {Key,Value} tuples th
 
 When the AJAX request completes successfully, the authenticate() function will be called, and the Token returned by the login page will be the solo parameter. At this point, you need to give the user a chance to log into the OAuth provider's page - if necessary - and give them the option to grant your application the ability to access their data. To do this, you need to redirect the browser to a page given to you by the OAuth provider and pass it the token:
 
-     function authenticate (token)
-     {
-	location.href="http://api.twitter.com/oauth/authenticate?oauth_token" + token;
-     }
+    function authenticate (token)
+    {
+        location.href="http://api.twitter.com/oauth/authenticate?oauth_token" + token;
+    }
 
 If the user successfully logs in and authenticates your application, the provider will redirect the user back to your site: specifically, back to the page your provided as a callback when you registered your site with the provider. In this tutorial, that would be home.erl.
 
@@ -95,26 +95,26 @@ At this point, you need to create your callback page, home.erl...
 
 Your home (callback) page will be where you exchange the current token the oauth_fsm currently has for an access token. To do this, you will need to fetch the token and verifier provided to you and pass them into oauth_fsm:
 
-        -module(home).
-	-compile(export_all).
-	-include_lib("nitrogen/include/wf.hrl").
-	-include("include/oauth.hrl").
+    -module(home).
+    -compile(export_all).
+    -include_lib("nitrogen/include/wf.hrl").
+    -include("include/oauth.hrl").
 
-	-define(ACCESS_URL,"https://apit.twitter.com/oauth/access_token").
+    -define(ACCESS_URL,"https://apit.twitter.com/oauth/access_token").
 
-	main () ->
-          %% lookup the oauth_fsm for this session
-	  Pid=wf:session("user"),
+    main () ->
+      %% lookup the oauth_fsm for this session
+      Pid=wf:session("user"),
 
-          %% get the token and verifier from the GET
-          Token=wf:state("oauth_token"),
-	  Verifier=wf:state("oauth_verifier"),
+      %% get the token and verifier from the GET
+      Token=wf:state("oauth_token"),
+      Verifier=wf:state("oauth_verifier"),
 
-	  %% exchange and get access tokens
-	  {ok,Reply}=gen_fsm:sync_send_event(Pid,{?ACCESS_URL,Token,Verifier}),
+      %% exchange and get access tokens
+      {ok,Reply}=gen_fsm:sync_send_event(Pid,{?ACCESS_URL,Token,Verifier}),
 
-	  %% the user has successfully logged in!
- 	  "You are now logged in!".
+      %% the user has successfully logged in!
+      "You are now logged in!".
 
 The Reply variable returned is a list of {Key,Value} tuples that the OAuth provider returned back with the successfull login, and is provider-specific. You can ignore them or save them off. For example, Twitter will return both the user_id and the screen_name of the user.
 
@@ -123,13 +123,13 @@ The Reply variable returned is a list of {Key,Value} tuples that the OAuth provi
 
 Once a user has successfully logged into your site, the oauth_fsm is still running, and you can use it to request information or perform account actions with the user. Each action or query performed is done by sending an event that consists of both the action URL and a list of {Key,Value} tuples, which act as the POST parameters to be sent to the provider.
 
-     TweetURL="http://api.twitter.com/1/statuses/update.json",
-     Params=[{"status","Hey, I'm tweeting from Erlang!"}],
-     {ok,Json}=gen_fsm:sync_send_event(Pid,{TweetURL,Params}).
+    TweetURL="http://api.twitter.com/1/statuses/update.json",
+    Params=[{"status","Hey, I'm tweeting from Erlang!"}],
+    {ok,Json}=gen_fsm:sync_send_event(Pid,{TweetURL,Params}).
 
 The oauth_fsm will stay in this state until the process dies (obviously) or you inidicate that you want to logout by sending (any state) the logout event:
 
-     gen_fsm:send_event(Pid,logout).
+    gen_fsm:send_event(Pid,logout).
 
 
 That's it!
