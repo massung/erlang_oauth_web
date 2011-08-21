@@ -8,7 +8,7 @@
 -behavior(gen_fsm).
 
 %% gen_fsm initialization
--export([start_link/0]).
+-export([start_link/1]).
 
 %% gen_fsm behavior functions
 -export([init/1,terminate/3,code_change/4]).
@@ -21,11 +21,15 @@
 -include("include/oauth.hrl").
 
 %% start a new oauth state machine
-start_link () ->
-    gen_fsm:start_link({local,?MODULE},?MODULE,[],[]).
+start_link (Pid) ->
+    gen_fsm:start_link({local,?MODULE},?MODULE,[Pid],[]).
 
 %% initialize the new state machine
-init ([]) ->
+init ([SessionPid]) ->
+    %% when the session pid terminates, we need to terminate
+    monitor(process,SessionPid),
+
+    %% ready to begin
     {ok,request_token,undefined}.
 
 %% shutdown the state machine
@@ -49,6 +53,8 @@ handle_sync_event (_Event,_From,State,Data) ->
     {reply,ok,State,Data}.
 
 %% handle an unknown message
+handle_info ({'DOWN',_Ref,process,_Pid,_Reason},_State,Data) ->
+    {stop,normal,Data};
 handle_info (_Info,State,Data) ->
     {next_state,State,Data}.
 
