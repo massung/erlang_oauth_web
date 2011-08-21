@@ -1,7 +1,7 @@
 {application, oauth,
  [
   {description, "OAuth Web Framework Interface"},
-  {vsn, "1"},
+  {vsn, "1.0.0"},
   {modules, [oauth_app,oauth_sup,oauth,oauth_fsm]},
   {registered, []},
   {applications, [crypto,
