@@ -22,10 +22,10 @@
 
 %% start a new oauth state machine
 start_link (Pid) ->
-    gen_fsm:start_link({local,?MODULE},?MODULE,[Pid],[]).
+    gen_fsm:start_link(?MODULE,Pid,[]).
 
 %% initialize the new state machine
-init ([SessionPid]) ->
+init (SessionPid) ->
     %% when the session pid terminates, we need to terminate
     monitor(process,SessionPid),
 
