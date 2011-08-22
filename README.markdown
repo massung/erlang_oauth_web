@@ -62,7 +62,11 @@ Example login.erl:
 	}).
 
     main () ->
-      {ok,Pid}=oauth_fsm:start_link(),
+      %% get the current session pid for the user
+      Session=wf:call(session,get_process_pid,[]),
+
+      %% start the oauth state machine process
+      {ok,Pid}=oauth_fsm:start_link(Session),
 
       %% start the oauth state machine by acquiring a token
       {ok,Token}=gen_fsm:sync_send_event(Pid,{?TOKEN_URL,?CONSUMER,[]}),
@@ -74,7 +78,7 @@ Example login.erl:
       wf:content_type("text/plain"),
       Token.
 
-The empty list in the example above is an optional list of {Key,Value} tuples that are passed to the provider in the POST, giving the provider more information about the token request. For example, Google requires a "scope" parameter be passed in, detailing what features the application will be using, which will be presented to the user for them to authenticate.
+The empty list in sync_send_event/3 is an optional list of {Key,Value} tuples that are passed to the provider in the POST, giving the provider more information about the token request. For example, Google requires a "scope" parameter be passed in, detailing what features the application will be using, which will be presented to the user for them to authenticate. We pass in the session Pid to oauth_fsm:start_link/1 so that when the session dies, so does the FSM.
 
 
 ### User Login/Authentication
