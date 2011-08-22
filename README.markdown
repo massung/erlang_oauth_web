@@ -52,7 +52,7 @@ Example index.erl:
 
     event (login) ->
       %% get the session pid, we need this so we can monitor it [*]
-      {ok,Session}=wf:handler:call_readonly(session_handler,get_session_pid,[]),
+      {ok,Session}=wf_handler:call_readonly(session_handler,get_session_pid,[]),
 
       %% start the oauth state machine, and when the session dies, kill the fsm
       {ok,Pid}=oauth_fsm:start_link(Session),
@@ -66,12 +66,14 @@ Example index.erl:
       %% send the user to twitter's authentication page
       wf:redirect(wf:f("https://api.twitter.com/oauth/authorize?oauth_token=~s",[Token])).
 
+The extra, empty list parameter passed to sync_send_event/2 is an optional set of {Key,Value} pairs that will be sent to the OAuth provider in the POST. Often times an OAuth provider will expect additional information about what you intend to do with the user's account. For example, Google requires a "scope" parameter stating which Google applications you will be given access to (see: http://code.google.com/apis/accounts/docs/OAuth_ref.html#RequestToken).
+
 <i>[*] NOTE: This example requires exporting the get_session_pid/2 function from nitrogen_core/handlers/session/simple_session_handler.erl (a "private" function). Hopefully there will be a better way of tying processes to the session in the future.</i>
 
 
 ### User Login/Authentication
 
-Once the user has been sent to the OAuth provider's site, they will be asked to login if they aren't already. After they have successfully logged in, they will be presented with a page asking them if they would like to authenticate your application. If the user does so, they will be redirected back to your site, specifically to whatever URL you registered as a "callback" with the OAuth provider. For the purposes of this example, that would be login.erl (http://my.site.come/login).
+Once the user has been sent to the OAuth provider's site, they will be asked to login if they aren't already. After they have successfully logged in, they will be presented with a page asking them if they would like to authenticate your application along with a list of what your application will have access to. If the user agrees, they will be redirected back to your site, specifically to whatever URL you registered as a "callback" with the OAuth provider. For the purposes of this example, that would be login.erl (http://my.site.com/login).
 
 Along with redirecting the user back to your site, it also provides two additional pieces of data: the token you acquired in the previous step and a verification string. The token will be used by the oauth_fsm in order to confirm that everything is as it should be. The verification string is used by the OAuth provider in order to exchange the authentication token you received earlier for an access token.
 
