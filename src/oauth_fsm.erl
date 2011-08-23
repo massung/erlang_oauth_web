@@ -18,7 +18,7 @@
 -export([request_token/3,request_access/3,request/3]).
 
 %% oauth commons
--include("include/oauth.hrl").
+-include("../include/oauth.hrl").
 
 %% start a new oauth state machine
 start_link (Pid) ->
@@ -61,32 +61,32 @@ handle_info (_Info,State,Data) ->
 %% issue a request for a token
 request_token ({Url,Consumer=#oauth_consumer{},ExtraParams},_From,_) ->
     Params=oauth:oauth_params(Consumer) ++ ExtraParams,
-    Base=oauth:base_signature(Url,Params),
+    Base=oauth:base_signature(post,Url,Params),
     Signature=oauth:sign(Base,Consumer,""),
 
     %% send off the request and wait for a reponse
-    case oauth:issue_request(Url,[{"oauth_signature",Signature}|Params]) of
+    case oauth:issue_request(post,Url,[{"oauth_signature",Signature}|Params]) of
 	{ok,Tokens} ->
 	    {_,Token}=lists:keyfind("oauth_token",1,Tokens),
 	    {_,Secret}=lists:keyfind("oauth_token_secret",1,Tokens),
 
 	    %% return the token back, save the secret
-	    {reply,{ok,Token},request_access,{Consumer,Secret}};
+	    {reply,{ok,Token},request_access,{Consumer,Token,Secret}};
 	Error ->
 	    {stop,Error,Error,request_token}
     end.
 
 %% exchange a token for an access token
-request_access ({Url,Token,Verifier},_From,{Consumer,Secret}) ->
+request_access ({Url,Token,Verifier},_From,{Consumer,_AuthToken,Secret}) ->
     Params=oauth:oauth_params(Consumer)++[{"oauth_token",Token},
 					  {"oauth_verifier",Verifier}],
 
     %% construct the base signature and sign it
-    Base=oauth:base_signature(Url,Params),
+    Base=oauth:base_signature(post,Url,Params),
     Signature=oauth:sign(Base,Consumer,Secret),
 
     %% send off the request and wait for a response
-    case oauth:issue_request(Url,[{"oauth_signature",Signature}|Params]) of
+    case oauth:issue_request(post,Url,[{"oauth_signature",Signature}|Params]) of
 	{ok,Tokens} ->
 	    {_,{_,AccessToken},T2}=lists:keytake("oauth_token",1,Tokens),
 	    {_,{_,AccessSecret},T3}=lists:keytake("oauth_token_secret",1,T2),
@@ -98,8 +98,8 @@ request_access ({Url,Token,Verifier},_From,{Consumer,Secret}) ->
     end.
 
 %% perform a oauth request or action
-request ({Url,Params},_From,{Consumer,Token,Secret}) ->
-    Response=oauth:issue_post(Url,Consumer,Token,Secret,Params),
+request ({Method,Url,Params},_From,{Consumer,Token,Secret}) ->
+    Response=oauth:issue_command(Method,Url,Consumer,Token,Secret,Params),
 
     %% let the user decide what to do with the response
     {reply,Response,request,{Consumer,Token,Secret}}.

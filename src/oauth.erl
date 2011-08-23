@@ -5,10 +5,15 @@
 %%
 
 -module(oauth).
--export([oauth_params/1,base_signature/2,sign/3,issue_request/2,issue_post/5]).
+-export([oauth_params/1,
+	 base_signature/3,
+	 sign/3,
+	 parse_resp/1,
+	 issue_request/3,
+	 issue_command/6]).
 
 %% oauth commons
--include("include/oauth.hrl").
+-include("../include/oauth.hrl").
 
 %% check for alphanumeric acharacters
 is_letter (C) -> ((C >= $a) and (C =< $z)) or ((C >= $A) and (C =< $Z)).
@@ -30,6 +35,16 @@ encode_char (C) ->
 url_encode (V) when is_list(V) -> lists:flatten([encode_char(C) || C <- V]);
 url_encode (V) when is_integer(V) -> url_encode(integer_to_list(V));
 url_encode (V) when is_atom(V) -> url_encode(atom_to_list(V)).
+
+%% decode a string value
+url_decode (S) ->
+    case lists:splitwith(fun (X) -> X =/= $% end,S) of
+	{X,[_,A,B|XS]} -> 
+	    C=list_to_integer([A,B],16),
+	    lists:concat([X,[C],url_decode(XS)]);
+ 	{X,[]} -> 
+	    X
+    end.
 
 %% url encode a value for a get or post
 encode_param ({Key,Value}) ->
@@ -67,10 +82,17 @@ oauth_params (#oauth_consumer{key=Key,signature_method=Method}) ->
      {"oauth_version","1.0"}
     ].
 
+%% convert http method to base string
+method_string (get) -> "GET&";
+method_string (post) -> "POST&".
+
 %% create the base signature for a given request
-base_signature (Url,Params) ->
+base_signature (Method,Url,Params) ->
     Query=encode_params(Params),
-    lists:concat(["POST&",url_encode(Url),"&",url_encode(Query)]).
+    lists:concat([method_string(Method),
+		  url_encode(Url),
+		  "&",
+		  url_encode(Query)]).
 
 %% sign a base signature with hmac-sha1
 sign_hmac_sha (Base,Secret,Token) ->
@@ -94,19 +116,25 @@ parse_resp (Body) ->
     case lists:splitwith(fun (X) -> X =/= $& end,Body) of
 	{X,[_|XS]} ->
 	    {K,[_|V]} = lists:splitwith(fun (I) -> I =/= $= end,X),
- 	    [{K,V}|parse_resp(XS)];
+ 	    [{K,url_decode(V)}|parse_resp(XS)];
  	{X,[]} ->
  	    {K,[_|V]} = lists:splitwith(fun (I) -> I =/= $= end,X),
- 	    [{K,V}]
+ 	    [{K,url_decode(V)}]
+    end.
+
+%% generate the request type based on the http method
+http_request (Method,Url,Headers,Params) ->
+    EncodedParams=encode_params(Params),
+    case Method of
+	post -> {Url,Headers,"application/x-www-form-urlencoded",EncodedParams};
+	get -> {lists:concat([Url,"?",EncodedParams]),Headers}
     end.
 
 %% send an http request to the oauth server to get access/tokens
-issue_request (Url,Params) ->
-    Headers=[{"Authorization","OAuth"}],
-    ContentType="application/x-www-form-urlencoded",
-    Post={Url,Headers,ContentType,encode_params(Params)},
+issue_request (Method,Url,Params) ->
+    Req=http_request(Method,Url,[],Params),
     HTTPOptions=[{timeout,15000}],
-    case httpc:request(post,Post,HTTPOptions,[]) of
+    case httpc:request(Method,Req,HTTPOptions,[]) of
 	{ok,{{_,200,_},_Headers,Body}} ->
 	    {ok,parse_resp(Body)};
 	{ok,{{_,Code,Error},_Headers,Body}} ->
@@ -115,16 +143,15 @@ issue_request (Url,Params) ->
     end.
 
 %% send a POST, all authorization is done, oauth goes in the header
-issue_post (Url,Consumer,Token,Secret,Params) ->
+issue_command (Method,Url,Consumer,Token,Secret,Params) ->
     OAuthParams=[{"oauth_token",Token}|oauth:oauth_params(Consumer)],
-    Base=base_signature(Url,OAuthParams ++ Params),
+    Base=base_signature(Method,Url,OAuthParams ++ Params),
     Signature=sign(Base,Consumer,Secret),
     Authorization=oauth_header([{"oauth_signature",Signature}|OAuthParams]),
     Headers=[{"Authorization",Authorization}],
-    ContentType="application/x-www-form-urlencoded",
-    Post={Url,Headers,ContentType,encode_params(Params)},
+    Req=http_request(Method,Url,Headers,Params),
     HTTPOptions=[{timeout,15000}],
-    case httpc:request(post,Post,HTTPOptions,[]) of
+    case httpc:request(Method,Req,HTTPOptions,[]) of
 	{ok,{{_,200,_},_Headers,Body}} ->
 	    {ok,Body};
 	{ok,{{_,Code,Error},_Headers,Body}} ->
